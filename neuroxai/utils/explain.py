@@ -12,6 +12,7 @@ from ..src.vanilla_grad import get_vanilla_grad
 
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 # Visualization and save of all NeuroXAI methods
 def get_neuroxai(ID, model, io_imgs, CLASS_ID=0, SLICE_ID=77, LAYER_NAME=None, 
@@ -148,7 +149,8 @@ def get_neuroxai(ID, model, io_imgs, CLASS_ID=0, SLICE_ID=77, LAYER_NAME=None,
 # Visualization and save of a single NeuroXAI method
 def visualize_neuroxai_cnn(ID, model, io_imgs, grads, CLASS_ID=0, SLICE_ID=77,
                            LAYER_NAME=None, MODALITY="FLAIR", 
-                           XAI_MODE="classification", XAI="GCAM", DIMENSION="2d", 
+                           XAI_MODE="classification", XAI="GCAM",
+                           DIMENSION="2d", TUMOR_LABEL="all",
                            SAVE_RESULTS=False, SAVE_PATH=None):
 
     modality_dict = {"FLAIR": 0, "T1": 1, "T1CE": 2, "T2": 3}
@@ -261,15 +263,17 @@ def get_neuroxai_cnn(ID, model, io_imgs, CLASS_ID=0, SLICE_ID=77, LAYER_NAME=Non
         grads = get_guided_integrated_grads(model, io_imgs, CLASS_ID, LAYER_NAME, MODALITY, XAI_MODE)
     elif XAI=="GCAM":
         if XAI_MODE=="segmentation" and TUMOR_LABEL=="all":
-            grads = get_grad_cam(model, io_imgs, CLASS_IDs[0], CONV_LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
+            LAYER_NAME = CONV_LAYER_NAME
+            grads = get_grad_cam(model, io_imgs, CLASS_IDs[0], LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
             for c_id in CLASS_IDs[1:]:
-                grads += get_grad_cam(model, io_imgs, c_id, CONV_LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
+                grads += get_grad_cam(model, io_imgs, c_id, LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
         else:
-            grads = get_grad_cam(model, io_imgs, CLASS_ID, CONV_LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
+            grads = get_grad_cam(model, io_imgs, CLASS_ID, LAYER_NAME, MODALITY, XAI_MODE, DIMENSION)
 
 
     elif XAI=="GGCAM":
-        grads = get_guided_grad_cam(model, io_imgs, CLASS_ID, CONV_LAYER_NAME, MODALITY, XAI_MODE, DIMENSION, CLASS_IDs, TUMOR_LABEL)
+        LAYER_NAME = CONV_LAYER_NAME
+        grads = get_guided_grad_cam(model, io_imgs, CLASS_ID, LAYER_NAME, MODALITY, XAI_MODE, DIMENSION, CLASS_IDs, TUMOR_LABEL)
     elif XAI=="SMOOTH":
         if XAI_MODE=="classification": # 2d and 3d
             SmoothXAI="IG"

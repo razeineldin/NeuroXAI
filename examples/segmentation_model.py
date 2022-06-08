@@ -3,13 +3,12 @@ import os, sys
 import nibabel as nib
 
 from neuroxai.utils.process import norm_image
-
 from tensorflow.keras import Input, Model
-from tensorflow.keras.layers import concatenate, Conv3D, UpSampling3D, Activation, BatchNormalization
+from tensorflow.keras.layers import concatenate, Conv2D, Conv3D, UpSampling3D, Activation, BatchNormalization
 from tensorflow.keras.layers import SpatialDropout3D, MaxPooling3D, Conv3DTranspose #old: DECONV3D
 from tensorflow.keras.optimizers import Adam
-
 from tensorflow_addons.layers import InstanceNormalization
+import tensorflow as tf
 
 def crop_image_brats(img, OUT_SHAPE=(192, 224, 160)):
     # manual cropping
@@ -102,7 +101,7 @@ def create_up_sampling_module(input_layer, n_filters, SIZE=(2, 2, 2)):
 
 def get_deepseg(INP_SHAPE=(192, 224, 160, 4), N_FILTERS=8, DEPTH=5, DROPOUT=0.5,
                       N_SEG=3, N_LABELS=4, OPT=Adam, INIT_LR=1e-4,
-                      LOSS="mse", ACTIV="softmax"):
+                      LOSS="mse", ACTIV="softmax", WEIGHTS=None):
     inputs = Input(INP_SHAPE)
 
     current_layer = inputs
@@ -132,6 +131,30 @@ def get_deepseg(INP_SHAPE=(192, 224, 160, 4), N_FILTERS=8, DEPTH=5, DROPOUT=0.5,
     model = Model(inputs=inputs, outputs=activ_block)
     
     model.compile(optimizer=Adam(lr=INIT_LR), loss=LOSS, metrics=["accuracy"])
+
+    if WEIGHTS:
+        model.load_weights(WEIGHTS)
     return model
 
+def get_last_layer(model):
+    last_layer = model.layers[-1]
+    return last_layer
 
+def get_last_conv_layer(model, DIM="3d"):
+    if DIM == "2d":
+        final_conv = list(filter(lambda x: isinstance(x, Conv2D), 
+                                   model.layers))[-1]
+    elif DIM == "3d":
+        final_conv = list(filter(lambda x: isinstance(x, Conv3D), 
+                                   model.layers))[-1]
+    return final_conv
+
+def get_xai_segmentation_model(s_model, layer_n = None): 
+    if layer_n == None:
+        xai_layer = get_last_conv_layer(s_model)
+    else:
+        xai_layer = s_model.get_layer(layer_n)
+   
+    model = tf.keras.models.Model([s_model.inputs], [xai_layer.output, s_model.output])
+
+    return model
